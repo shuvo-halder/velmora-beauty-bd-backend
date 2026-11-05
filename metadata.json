@@ -1,0 +1,6 @@
+{
+  "name": "Ecommerce Admin Dashboard",
+  "description": "Full-stack ecommerce admin dashboard with a feature-first architecture.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
