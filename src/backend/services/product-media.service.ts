@@ -156,42 +156,41 @@ export class ProductMediaService {
   }
 
   /**
-   * Delete an image from product
+   * Delete an image from product (Safe transactional soft-delete)
    */
   static async deleteImage(productId: string, imageId: string) {
-    const image = await prisma.productImage.findFirst({
-      where: { id: imageId, productId, deletedAt: null },
-    });
-
-    if (!image) {
-      throw new AppError("Product image not found", 404, "IMAGE_NOT_FOUND");
-    }
-
-    if (image.publicId) {
-      await MediaService.deleteAsset(image.publicId);
-    } else {
-      // If it doesn't have a publicId, delete just the ProductImage
-      await prisma.productImage.delete({
-        where: { id: imageId },
-      });
-    }
-
-    // If deleted image was primary, set the first remaining image as primary
-    if (image.isPrimary) {
-      const remainingImage = await prisma.productImage.findFirst({
-        where: { productId, deletedAt: null },
-        orderBy: { sortOrder: "asc" },
+    return await prisma.$transaction(async (tx) => {
+      const image = await tx.productImage.findFirst({
+        where: { id: imageId, productId, deletedAt: null },
       });
 
-      if (remainingImage) {
-        await prisma.productImage.update({
-          where: { id: remainingImage.id },
-          data: { isPrimary: true },
-        });
+      if (!image) {
+        throw new AppError("Product image not found", 404, "IMAGE_NOT_FOUND");
       }
-    }
 
-    return true;
+      // Soft delete only the single image row by ID (do NOT call MediaService.deleteAsset, do NOT destroy Cloudinary asset)
+      await tx.productImage.update({
+        where: { id: imageId },
+        data: { deletedAt: new Date() },
+      });
+
+      // If deleted image was primary, set the first remaining active image as primary
+      if (image.isPrimary) {
+        const remainingImage = await tx.productImage.findFirst({
+          where: { productId, deletedAt: null },
+          orderBy: { sortOrder: "asc" },
+        });
+
+        if (remainingImage) {
+          await tx.productImage.update({
+            where: { id: remainingImage.id },
+            data: { isPrimary: true },
+          });
+        }
+      }
+
+      return true;
+    });
   }
 
   /**

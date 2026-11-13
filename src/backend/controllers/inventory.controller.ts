@@ -5,6 +5,7 @@ import { prisma } from "../config/db";
 export const getLowStock = asyncHandler(async (req: Request, res: Response) => {
   const lowStock = await prisma.inventory.findMany({
     where: {
+      deletedAt: null,
       quantityAvailable: {
         lte: prisma.inventory.fields.lowStockThreshold
       },
@@ -33,6 +34,7 @@ export const getLowStock = asyncHandler(async (req: Request, res: Response) => {
 export const getOutOfStock = asyncHandler(async (req: Request, res: Response) => {
   const outOfStock = await prisma.inventory.findMany({
     where: {
+      deletedAt: null,
       quantityAvailable: {
         lte: 0
       }
@@ -54,6 +56,7 @@ export const getOutOfStock = asyncHandler(async (req: Request, res: Response) =>
 export const getInventoryValue = asyncHandler(async (req: Request, res: Response) => {
   const inventories = await prisma.inventory.findMany({
     where: {
+      deletedAt: null,
       quantityAvailable: {
         gt: 0
       }
@@ -80,6 +83,9 @@ export const getInventoryValue = asyncHandler(async (req: Request, res: Response
 
 export const getAllInventory = asyncHandler(async (req: Request, res: Response) => {
   const inventory = await prisma.inventory.findMany({
+    where: {
+      deletedAt: null
+    },
     include: {
       product: true,
       variant: {

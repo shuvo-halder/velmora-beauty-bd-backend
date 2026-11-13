@@ -41,7 +41,7 @@ export const getCategoryById = asyncHandler(async (req: Request, res: Response) 
     where: { id, deletedAt: null },
     include: {
       parent: true,
-      children: true,
+      children: { where: { deletedAt: null } },
     }
   });
 
@@ -159,7 +159,7 @@ export const deleteCategory = asyncHandler(async (req: Request, res: Response) =
 
   const existingCategory = await prisma.category.findFirst({ 
     where: { id, deletedAt: null },
-    include: { children: true }
+    include: { children: { where: { deletedAt: null } } }
   });
 
   if (!existingCategory) {

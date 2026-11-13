@@ -347,13 +347,17 @@ export class MediaService {
       },
     });
 
-    // 1. Safe Media Usage Detection: Check if asset is referenced anywhere across DB
+    // 1. Safe Media Usage Detection: Check if asset is referenced anywhere across DB (including archived)
     const usage = await MediaUsageService.checkAssetUsage(assetOrPublicId, asset || undefined);
     if (usage.used) {
+      const hasArchived = usage.references.some((r) => r.status === "ARCHIVED");
+      const message = hasArchived
+        ? "This media asset is referenced by active or archived items and cannot be deleted."
+        : "This media asset is currently in use and cannot be deleted.";
       throw new AppError(
-        'This media asset is currently in use and cannot be deleted.',
+        message,
         400,
-        'MEDIA_ASSET_IN_USE',
+        "MEDIA_ASSET_IN_USE",
         true,
         usage
       );
@@ -374,16 +378,21 @@ export class MediaService {
       await prisma.mediaAsset.delete({ where: { id: asset.id } });
     }
 
-    // Attempt to delete related entities if publicId matches
-    if (publicId) {
+    // Attempt to safely soft-delete related product image entities if a valid publicId matches
+    // Only executed after checkAssetUsage has confirmed used === false (no active dependencies)
+    if (publicId && typeof publicId === 'string' && publicId.trim() !== '') {
       try {
-        await prisma.productImage.deleteMany({
+        await prisma.productImage.updateMany({
           where: {
             OR: [
               { publicId },
               { cloudinaryPublicId: publicId },
-            ]
-          }
+            ],
+            deletedAt: null,
+          },
+          data: {
+            deletedAt: new Date(),
+          },
         });
         await prisma.categoryImage.deleteMany({
           where: { cloudinaryPublicId: publicId }
@@ -462,7 +471,7 @@ export class MediaService {
    * List all media assets in library
    */
   static async listAssets(folder?: string, search?: string) {
-    const where: any = {};
+    const where: any = { deletedAt: null };
     if (folder && folder !== 'all' && folder !== 'root') {
       where.folder = folder;
     }

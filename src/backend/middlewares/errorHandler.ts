@@ -47,9 +47,15 @@ export const errorHandler = (
       code = "NOT_FOUND";
       message = "The requested resource could not be found in the database.";
     } else if (err.code === "P2003") {
-      statusCode = 400;
-      code = "BAD_REQUEST";
-      message = "Related database record not found.";
+      if (req.method === "DELETE") {
+        statusCode = 409;
+        code = "CONFLICT";
+        message = "Cannot delete this record because other records depend on it.";
+      } else {
+        statusCode = 400;
+        code = "BAD_REQUEST";
+        message = "Related database record not found.";
+      }
     } else {
       statusCode = 400;
       code = "DATABASE_ERROR";

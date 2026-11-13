@@ -45,10 +45,10 @@ export const getAllProducts = asyncHandler(async (req: Request, res: Response) =
       include: {
         category: { include: { parent: true } },
         brand: true,
-        inventory: true,
-        images: { orderBy: { sortOrder: 'asc' } },
+        inventory: { where: { deletedAt: null } },
+        images: { where: { deletedAt: null }, orderBy: { sortOrder: 'asc' } },
         tags: true,
-        variants: true,
+        variants: { where: { deletedAt: null } },
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -83,10 +83,10 @@ export const getProductById = asyncHandler(async (req: Request, res: Response) =
     include: {
       category: true,
       brand: true,
-      inventory: true,
-      images: { orderBy: { sortOrder: 'asc' } },
+      inventory: { where: { deletedAt: null } },
+      images: { where: { deletedAt: null }, orderBy: { sortOrder: 'asc' } },
       tags: true,
-      variants: true,
+      variants: { where: { deletedAt: null } },
     },
   });
 
@@ -352,6 +352,13 @@ export const deleteProduct = asyncHandler(async (req: Request, res: Response) =>
 
   const deleteDate = new Date();
 
+  // Find all variant IDs for this product to also soft-delete their variant-level inventories
+  const variants = await prisma.productVariant.findMany({
+    where: { productId: id },
+    select: { id: true },
+  });
+  const variantIds = variants.map((v: { id: string }) => v.id);
+
   await prisma.$transaction([
     prisma.product.update({
       where: { id },
@@ -366,7 +373,13 @@ export const deleteProduct = asyncHandler(async (req: Request, res: Response) =>
       data: { deletedAt: deleteDate },
     }),
     prisma.inventory.updateMany({
-      where: { productId: id, deletedAt: null },
+      where: {
+        OR: [
+          { productId: id },
+          ...(variantIds.length > 0 ? [{ variantId: { in: variantIds } }] : []),
+        ],
+        deletedAt: null,
+      },
       data: { deletedAt: deleteDate },
     }),
   ]);

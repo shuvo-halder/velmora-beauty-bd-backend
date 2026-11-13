@@ -75,13 +75,13 @@ router.delete(
 
 // Product Media Routes
 router.post("/:id/images", requirePermission("Products", "write"), upload.single("image"), uploadProductImage);
-router.delete("/:id/images/:imageId", requirePermission("Products", "write"), deleteProductImage);
+router.delete("/:id/images/:imageId", requirePermission("Products", "delete"), validateParamsUUID(["id", "imageId"]), deleteProductImage);
 router.put("/:id/images/reorder", requirePermission("Products", "write"), reorderProductImages);
 router.put("/:id/images/:imageId/primary", requirePermission("Products", "write"), setPrimaryProductImage);
 
 router.route("/:id")
-  .get(requirePermission("Products", "read"), getProductById)
-  .put(requirePermission("Products", "write"), updateProduct)
-  .delete(requirePermission("Products", "delete"), deleteProduct);
+  .get(requirePermission("Products", "read"), validateParamsUUID(["id"]), getProductById)
+  .put(requirePermission("Products", "write"), validateParamsUUID(["id"]), updateProduct)
+  .delete(requirePermission("Products", "delete"), validateParamsUUID(["id"]), deleteProduct);
 
 export default router;
